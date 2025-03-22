@@ -24,6 +24,9 @@ export class Recipe {
   @Column()
   cuisineType: string;
 
+  @Column('simple-array', { default: 'Lunch,Dinner' })
+  suitableMealTypes: string;
+
   @Column({ default: false })
   isPublic: boolean;
 

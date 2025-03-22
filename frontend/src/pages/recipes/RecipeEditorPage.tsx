@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { useAuth } from '../../hooks/useAuth';
+import { recipeService } from '../../services/apiService';
 import {
   Alert,
   Box,
@@ -51,6 +53,7 @@ const MOCK_RECIPE = {
   cookingTime: 30,
   cuisineType: 'Italian',
   dietaryRestrictions: ['Dairy'],
+  suitableMealTypes: ['Lunch', 'Dinner'],
   ingredients: [
     { name: 'Spaghetti', quantity: 400, unit: 'g' },
     { name: 'Pancetta', quantity: 150, unit: 'g' },
@@ -87,6 +90,14 @@ const DIETARY_RESTRICTIONS = [
   'Paleo',
 ];
 
+// Meal types
+const MEAL_TYPES = [
+  'Breakfast',
+  'Lunch',
+  'Dinner',
+  'Snack',
+];
+
 // Common units
 const COMMON_UNITS = [
   'g',
@@ -111,6 +122,7 @@ interface RecipeFormValues {
   cookingTime: number;
   cuisineType: string;
   dietaryRestrictions: string[];
+  suitableMealTypes: string[];
   preparationSteps: string;
   ingredients: {
     name: string;
@@ -126,6 +138,7 @@ const RecipeEditorPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditMode = !!id;
+  const { accessToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -143,6 +156,7 @@ const RecipeEditorPage = () => {
       cookingTime: 30,
       cuisineType: '',
       dietaryRestrictions: [],
+      suitableMealTypes: ['Lunch', 'Dinner'], // Default to Lunch and Dinner
       preparationSteps: '',
       ingredients: [{ name: '', quantity: 0, unit: '' }],
     },
@@ -167,6 +181,7 @@ const RecipeEditorPage = () => {
           cookingTime: MOCK_RECIPE.cookingTime,
           cuisineType: MOCK_RECIPE.cuisineType,
           dietaryRestrictions: MOCK_RECIPE.dietaryRestrictions,
+          suitableMealTypes: MOCK_RECIPE.suitableMealTypes,
           preparationSteps: MOCK_RECIPE.preparationSteps,
           ingredients: MOCK_RECIPE.ingredients,
         });
@@ -181,11 +196,21 @@ const RecipeEditorPage = () => {
       setError(null);
       setSuccess(null);
       
-      // In a real app, this would send data to the API
-      console.log('Submitting recipe:', data);
+      // Prepare the data for submission
+      const formattedData = {
+        ...data,
+        // Ensure suitableMealTypes is an array
+        suitableMealTypes: Array.isArray(data.suitableMealTypes)
+          ? data.suitableMealTypes
+          : [data.suitableMealTypes],
+      };
       
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Save the recipe using the recipe service
+      if (isEditMode && id) {
+        await recipeService.updateRecipe(id, formattedData, accessToken);
+      } else {
+        await recipeService.createRecipe(formattedData, accessToken);
+      }
       
       setSuccess(isEditMode ? 'Recipe updated successfully!' : 'Recipe created successfully!');
       
@@ -375,6 +400,41 @@ const RecipeEditorPage = () => {
                         </MenuItem>
                       ))}
                     </Select>
+                  </FormControl>
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <Controller
+                name="suitableMealTypes"
+                control={control}
+                rules={{ required: 'At least one meal type is required' }}
+                render={({ field }) => (
+                  <FormControl fullWidth error={!!errors.suitableMealTypes}>
+                    <InputLabel id="meal-types-label">Suitable Meal Types</InputLabel>
+                    <Select
+                      {...field}
+                      labelId="meal-types-label"
+                      label="Suitable Meal Types"
+                      multiple
+                      renderValue={(selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selected.map((value) => (
+                            <Chip key={value} label={value} size="small" />
+                          ))}
+                        </Box>
+                      )}
+                    >
+                      {MEAL_TYPES.map((mealType) => (
+                        <MenuItem key={mealType} value={mealType}>
+                          {mealType}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {errors.suitableMealTypes && (
+                      <FormHelperText>{errors.suitableMealTypes.message}</FormHelperText>
+                    )}
                   </FormControl>
                 )}
               />

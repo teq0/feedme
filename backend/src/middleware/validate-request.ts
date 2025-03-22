@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { validationResult } from 'express-validator';
+import { validationResult, ValidationError } from 'express-validator';
 import { ApiError } from './error-handler';
 
 /**
@@ -9,7 +9,7 @@ export const validateRequest = (req: Request, res: Response, next: NextFunction)
   const errors = validationResult(req);
   
   if (!errors.isEmpty()) {
-    const errorMessages = errors.array().map((error) => ({
+    const errorMessages = errors.array().map((error: any) => ({
       field: error.param,
       message: error.msg,
     }));

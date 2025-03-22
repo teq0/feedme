@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { config } from '../config/config';
 import { UserService } from './user.service';
 import { AuthTokens, CreateUserDto, JwtPayload, LoginUserDto, UserRole } from '../types/user.types';
@@ -71,14 +71,22 @@ export class AuthService {
     };
 
     // Generate access token
-    const accessToken = jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
-    });
+    const accessToken = jwt.sign(
+      payload,
+      config.jwt.secret as jwt.Secret,
+      {
+        expiresIn: config.jwt.expiresIn,
+      } as SignOptions
+    );
 
     // Generate refresh token
-    const refreshToken = jwt.sign(payload, config.jwt.refreshSecret, {
-      expiresIn: config.jwt.refreshExpiresIn,
-    });
+    const refreshToken = jwt.sign(
+      payload,
+      config.jwt.refreshSecret as jwt.Secret,
+      {
+        expiresIn: config.jwt.refreshExpiresIn,
+      } as SignOptions
+    );
 
     // Get expiration time in seconds
     const decodedToken = jwt.decode(accessToken) as { exp: number };

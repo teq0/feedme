@@ -25,6 +25,7 @@ import {
   Kitchen as IngredientIcon,
   LocalDining as CuisineIcon,
   FoodBank as DietaryIcon,
+  Restaurant as MealTypeIcon,
 } from '@mui/icons-material';
 import RecipeCard from '../../components/recipes/RecipeCard';
 
@@ -36,6 +37,7 @@ interface Recipe {
   cookingTime: number;
   cuisineType: string;
   dietaryRestrictions: string[];
+  suitableMealTypes: string[];
   matchScore?: number;
 }
 
@@ -48,6 +50,7 @@ const MOCK_RECIPES: Recipe[] = [
     cookingTime: 30,
     cuisineType: 'Italian',
     dietaryRestrictions: ['Dairy'],
+    suitableMealTypes: ['lunch', 'dinner'],
   },
   {
     id: '2',
@@ -56,6 +59,7 @@ const MOCK_RECIPES: Recipe[] = [
     cookingTime: 45,
     cuisineType: 'Indian',
     dietaryRestrictions: ['Vegetarian', 'Gluten-Free'],
+    suitableMealTypes: ['lunch', 'dinner'],
   },
   {
     id: '3',
@@ -64,6 +68,7 @@ const MOCK_RECIPES: Recipe[] = [
     cookingTime: 20,
     cuisineType: 'Chinese',
     dietaryRestrictions: [],
+    suitableMealTypes: ['lunch', 'dinner'],
   },
   {
     id: '4',
@@ -72,6 +77,7 @@ const MOCK_RECIPES: Recipe[] = [
     cookingTime: 15,
     cuisineType: 'Greek',
     dietaryRestrictions: ['Vegetarian'],
+    suitableMealTypes: ['lunch'],
   },
   {
     id: '5',
@@ -80,6 +86,7 @@ const MOCK_RECIPES: Recipe[] = [
     cookingTime: 25,
     cuisineType: 'Mexican',
     dietaryRestrictions: ['Dairy'],
+    suitableMealTypes: ['lunch', 'dinner'],
   },
   {
     id: '6',
@@ -88,6 +95,7 @@ const MOCK_RECIPES: Recipe[] = [
     cookingTime: 40,
     cuisineType: 'Italian',
     dietaryRestrictions: ['Vegetarian', 'Gluten-Free'],
+    suitableMealTypes: ['dinner'],
   },
   {
     id: '7',
@@ -96,14 +104,16 @@ const MOCK_RECIPES: Recipe[] = [
     cookingTime: 25,
     cuisineType: 'American',
     dietaryRestrictions: ['Gluten-Free'],
+    suitableMealTypes: ['lunch', 'dinner'],
   },
   {
     id: '8',
-    name: 'Pad Thai',
-    imageUrl: 'https://source.unsplash.com/random/300x200/?padthai',
-    cookingTime: 35,
-    cuisineType: 'Thai',
-    dietaryRestrictions: ['Nut-Free'],
+    name: 'Pancakes',
+    imageUrl: 'https://source.unsplash.com/random/300x200/?pancakes',
+    cookingTime: 20,
+    cuisineType: 'American',
+    dietaryRestrictions: ['Vegetarian'],
+    suitableMealTypes: ['breakfast'],
   },
 ];
 
@@ -147,6 +157,13 @@ const DIETARY_RESTRICTIONS = [
   'Paleo',
 ];
 
+// Meal types
+const MEAL_TYPES = [
+  { value: 'breakfast', label: 'Breakfast' },
+  { value: 'lunch', label: 'Lunch' },
+  { value: 'dinner', label: 'Dinner' },
+];
+
 /**
  * Recommendations page component
  */
@@ -155,6 +172,7 @@ const RecommendationsPage = () => {
   const [useIngredients, setUseIngredients] = useState(true);
   const [selectedCuisine, setSelectedCuisine] = useState('All');
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
+  const [selectedMealTypes, setSelectedMealTypes] = useState<string[]>(['dinner']); // Default to dinner
   const [loading, setLoading] = useState(false);
 
   // Generate recommendations on initial load
@@ -187,6 +205,15 @@ const RecommendationsPage = () => {
         );
       }
       
+      // Apply meal type filter
+      if (selectedMealTypes.length > 0) {
+        filteredRecipes = filteredRecipes.filter((recipe) =>
+          selectedMealTypes.some((mealType) =>
+            recipe.suitableMealTypes.includes(mealType)
+          )
+        );
+      }
+      
       // If using ingredients, prioritize recipes that use available ingredients
       // This is a simplified version - in a real app, this would be more sophisticated
       if (useIngredients) {
@@ -203,8 +230,11 @@ const RecommendationsPage = () => {
         filteredRecipes.sort(() => Math.random() - 0.5);
       }
       
-      // Take up to 6 recipes
-      setRecommendations(filteredRecipes.slice(0, 6));
+      // Calculate how many recipes to recommend based on meal types
+      const recipesNeeded = selectedMealTypes.length;
+      
+      // Take the required number of recipes
+      setRecommendations(filteredRecipes.slice(0, recipesNeeded));
       setLoading(false);
     }, 1000);
   };
@@ -215,9 +245,12 @@ const RecommendationsPage = () => {
     
     // Simulate API call delay
     setTimeout(() => {
-      // Randomly select 6 recipes
+      // Calculate how many recipes to recommend based on meal types
+      const recipesNeeded = selectedMealTypes.length;
+      
+      // Randomly select recipes
       const shuffled = [...MOCK_RECIPES].sort(() => Math.random() - 0.5);
-      setRecommendations(shuffled.slice(0, 6));
+      setRecommendations(shuffled.slice(0, recipesNeeded));
       setLoading(false);
     }, 1000);
   };
@@ -228,6 +261,18 @@ const RecommendationsPage = () => {
       setSelectedDietary(selectedDietary.filter((r) => r !== restriction));
     } else {
       setSelectedDietary([...selectedDietary, restriction]);
+    }
+  };
+
+  // Handle meal type toggle
+  const handleMealTypeToggle = (mealType: string) => {
+    if (selectedMealTypes.includes(mealType)) {
+      // Don't allow deselecting all meal types
+      if (selectedMealTypes.length > 1) {
+        setSelectedMealTypes(selectedMealTypes.filter((m) => m !== mealType));
+      }
+    } else {
+      setSelectedMealTypes([...selectedMealTypes, mealType]);
     }
   };
 
@@ -324,6 +369,29 @@ const RecommendationsPage = () => {
             </FormGroup>
           </Grid>
 
+          <Grid item xs={12} md={6}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <MealTypeIcon sx={{ mr: 1 }} color="primary" />
+              <Typography variant="h6">Meal Types</Typography>
+            </Box>
+            <FormGroup row>
+              {MEAL_TYPES.map((mealType) => (
+                <FormControlLabel
+                  key={mealType.value}
+                  control={
+                    <Switch
+                      checked={selectedMealTypes.includes(mealType.value)}
+                      onChange={() => handleMealTypeToggle(mealType.value)}
+                    />
+                  }
+                  label={mealType.label}
+                />
+              ))}
+            </FormGroup>
+          </Grid>
+
+          {/* Days Per Week selector removed as it doesn't make sense in the Recommendations page */}
+
           <Grid item xs={12}>
             <Divider sx={{ my: 2 }} />
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -353,6 +421,13 @@ const RecommendationsPage = () => {
       <Box sx={{ mb: 4 }}>
         <Typography variant="h5" gutterBottom>
           Recommended Recipes
+          {selectedMealTypes.length > 0 && (
+            <Typography variant="subtitle1" component="span" color="text.secondary" sx={{ ml: 2 }}>
+              {selectedMealTypes.length === 1
+                ? MEAL_TYPES.find(m => m.value === selectedMealTypes[0])?.label
+                : `${selectedMealTypes.length} meal types`}
+            </Typography>
+          )}
         </Typography>
         {recommendations.length > 0 ? (
           <Grid container spacing={3}>

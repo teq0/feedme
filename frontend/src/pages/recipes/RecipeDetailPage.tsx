@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import { recipeService } from '../../services/apiService';
 import {
   Box,
   Breadcrumbs,
@@ -62,16 +64,60 @@ const MOCK_RECIPE = {
  */
 const RecipeDetailPage = () => {
   const { id } = useParams<{ id: string }>();
-  const [recipe, setRecipe] = useState(MOCK_RECIPE);
-  const [loading, setLoading] = useState(false);
+  const { accessToken } = useAuth();
+  const [recipe, setRecipe] = useState<typeof MOCK_RECIPE | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Define interface for dietary restriction object
+  interface DietaryRestrictionObj {
+    id: string;
+    restriction: string;
+    recipeId: string;
+    createdAt?: string;
+    updatedAt?: string;
+  }
 
   // Fetch recipe data
   useEffect(() => {
-    // In a real app, this would fetch data from the API
-    // For now, we'll just use the mock data
-    setRecipe(MOCK_RECIPE);
-  }, [id]);
+    const fetchRecipe = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const recipeData = await recipeService.getRecipeById(id, accessToken);
+        
+        // Transform the data to match the expected format
+        const transformedRecipe = {
+          ...recipeData,
+          // Transform dietaryRestrictions from objects to strings
+          dietaryRestrictions: recipeData.dietaryRestrictions
+            ? recipeData.dietaryRestrictions.map((r: string | DietaryRestrictionObj) =>
+                typeof r === 'string' ? r : r.restriction)
+            : [],
+          // Transform suitableMealTypes from string to array if needed
+          suitableMealTypes: recipeData.suitableMealTypes
+            ? (typeof recipeData.suitableMealTypes === 'string'
+                ? recipeData.suitableMealTypes.split(',')
+                : recipeData.suitableMealTypes)
+            : []
+        };
+        
+        setRecipe(transformedRecipe);
+      } catch (error) {
+        console.error('Error fetching recipe:', error);
+        setError('Failed to load recipe. Please try again later.');
+        // Use mock data as fallback
+        setRecipe(MOCK_RECIPE);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchRecipe();
+  }, [id, accessToken]);
 
   if (loading) {
     return (
@@ -85,6 +131,14 @@ const RecipeDetailPage = () => {
     return (
       <Container maxWidth="lg">
         <Typography color="error">{error}</Typography>
+      </Container>
+    );
+  }
+  
+  if (!recipe) {
+    return (
+      <Container maxWidth="lg">
+        <Typography>Recipe not found</Typography>
       </Container>
     );
   }
@@ -114,7 +168,7 @@ const RecipeDetailPage = () => {
         </Button>
         <Button
           component={RouterLink}
-          to={`/recipes/edit/${id}`}
+          to={`/recipes/edit/${recipe.id}`}
           variant="contained"
           startIcon={<EditIcon />}
         >

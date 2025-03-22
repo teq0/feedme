@@ -23,7 +23,7 @@ router.use('/auth', authRoutes);
 
 // Protected routes
 router.use('/users', authenticate(), userRoutes);
-router.use('/recipes', authenticate(), recipeRoutes);
+router.use('/recipes', recipeRoutes); // Allow public access to recipes
 router.use('/ingredients', authenticate(), ingredientRoutes);
 router.use('/inventory', authenticate(), inventoryRoutes);
 router.use('/meal-plans', authenticate(), mealPlanRoutes);

@@ -26,6 +26,7 @@ interface Recipe {
   cookingTime: number;
   cuisineType: string;
   dietaryRestrictions: string[];
+  suitableMealTypes?: string[];
 }
 
 interface RecipeCardProps {
@@ -69,6 +70,23 @@ const RecipeCard = ({ recipe }: RecipeCardProps) => {
             {recipe.cuisineType}
           </Typography>
           
+          {/* Suitable Meal Types */}
+          {recipe.suitableMealTypes && recipe.suitableMealTypes.length > 0 && (
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+              {recipe.suitableMealTypes.map((mealType) => (
+                <Chip
+                  key={mealType}
+                  label={mealType}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  sx={{ mt: 0.5 }}
+                />
+              ))}
+            </Stack>
+          )}
+          
+          {/* Dietary Restrictions */}
           {recipe.dietaryRestrictions.length > 0 && (
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {recipe.dietaryRestrictions.map((restriction) => (

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { recipeService } from '../../services/apiService';
 import {
   Box,
   Button,
@@ -11,12 +13,15 @@ import {
   DialogTitle,
   Divider,
   FormControl,
+  FormControlLabel,
+  FormGroup,
   Grid,
   IconButton,
   InputLabel,
   MenuItem,
   Paper,
   Select,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material';
@@ -26,58 +31,39 @@ import {
   ArrowForwardIos as NextIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
+  Restaurant as MealTypeIcon,
+  CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { Link as RouterLink } from 'react-router-dom';
 
-// Mock data for recipes
-const MOCK_RECIPES = [
-  {
-    id: '1',
-    name: 'Spaghetti Carbonara',
-    imageUrl: 'https://source.unsplash.com/random/300x200/?pasta',
-    cookingTime: 30,
-    cuisineType: 'Italian',
-  },
-  {
-    id: '2',
-    name: 'Vegetable Curry',
-    imageUrl: 'https://source.unsplash.com/random/300x200/?curry',
-    cookingTime: 45,
-    cuisineType: 'Indian',
-  },
-  {
-    id: '3',
-    name: 'Chicken Stir Fry',
-    imageUrl: 'https://source.unsplash.com/random/300x200/?stirfry',
-    cookingTime: 20,
-    cuisineType: 'Chinese',
-  },
-  {
-    id: '4',
-    name: 'Greek Salad',
-    imageUrl: 'https://source.unsplash.com/random/300x200/?salad',
-    cookingTime: 15,
-    cuisineType: 'Greek',
-  },
-  {
-    id: '5',
-    name: 'Beef Tacos',
-    imageUrl: 'https://source.unsplash.com/random/300x200/?tacos',
-    cookingTime: 25,
-    cuisineType: 'Mexican',
-  },
-  {
-    id: '6',
-    name: 'Mushroom Risotto',
-    imageUrl: 'https://source.unsplash.com/random/300x200/?risotto',
-    cookingTime: 40,
-    cuisineType: 'Italian',
-  },
-];
+// Recipe interface
+interface Recipe {
+  id: string;
+  name: string;
+  imageUrl: string;
+  cookingTime: number;
+  cuisineType: string;
+  suitableMealTypes: string[];
+  dietaryRestrictions?: string[];
+  preparationSteps?: string;
+  ingredients?: any[];
+  isPublic?: boolean;
+}
 
 // Meal types
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+
+// Meal type options for selection
+const MEAL_TYPE_OPTIONS = [
+  { value: 'Breakfast', label: 'Breakfast' },
+  { value: 'Lunch', label: 'Lunch' },
+  { value: 'Dinner', label: 'Dinner' },
+  { value: 'Snack', label: 'Snack' },
+];
+
+// Days per week options
+const DAYS_PER_WEEK = [1, 2, 3, 4, 5, 6, 7];
 
 // Days of the week
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -105,11 +91,51 @@ interface MealPlan {
  * Meal planner page component
  */
 const MealPlannerPage = () => {
+  const { accessToken } = useAuth();
   const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string>('');
   const [selectedMealType, setSelectedMealType] = useState<string>('');
+  const [selectedMealTypes, setSelectedMealTypes] = useState<string[]>(['Lunch', 'Dinner']); // Default to Lunch and Dinner
+  const [daysPerWeek, setDaysPerWeek] = useState<number>(5); // Default to 5 days
+
+  // Fetch recipes from API
+  useEffect(() => {
+    const fetchRecipes = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const recipesData = await recipeService.getAllRecipes(accessToken);
+        
+        // Transform the data to match the expected format
+        const transformedRecipes = recipesData.map(recipe => ({
+          ...recipe,
+          // Transform suitableMealTypes from string to array if needed
+          suitableMealTypes: typeof recipe.suitableMealTypes === 'string'
+            ? recipe.suitableMealTypes.split(',')
+            : recipe.suitableMealTypes || [],
+          // Transform dietaryRestrictions from objects to strings if needed
+          dietaryRestrictions: Array.isArray(recipe.dietaryRestrictions)
+            ? recipe.dietaryRestrictions.map((r: any) => typeof r === 'string' ? r : r.restriction)
+            : []
+        }));
+        
+        setRecipes(transformedRecipes);
+      } catch (error) {
+        console.error('Error fetching recipes:', error);
+        setError('Failed to load recipes. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchRecipes();
+  }, [accessToken]);
 
   // Initialize form
   const {
@@ -143,24 +169,24 @@ const MealPlannerPage = () => {
   useEffect(() => {
     const { startDate, endDate } = getWeekDates(currentWeek);
     
-    // In a real app, this would fetch data from the API
-    // For now, we'll just create a mock meal plan
-    const mockMealPlan: MealPlan = {
-      id: '1',
+    // Create a new meal plan for the current week
+    // In a real app, this would fetch from the API
+    const newMealPlan: MealPlan = {
+      id: Date.now().toString(),
       startDate,
       endDate,
-      meals: [
-        { id: '1', day: 'Monday', mealType: 'Breakfast', recipeId: '4' },
-        { id: '2', day: 'Monday', mealType: 'Dinner', recipeId: '1' },
-        { id: '3', day: 'Wednesday', mealType: 'Lunch', recipeId: '2' },
-        { id: '4', day: 'Thursday', mealType: 'Dinner', recipeId: '3' },
-        { id: '5', day: 'Saturday', mealType: 'Lunch', recipeId: '5' },
-        { id: '6', day: 'Sunday', mealType: 'Dinner', recipeId: '6' },
-      ],
+      meals: [],
     };
     
-    setMealPlan(mockMealPlan);
-  }, [currentWeek]);
+    setMealPlan(newMealPlan);
+    
+    // If we have recipes, generate a meal plan
+    if (recipes.length > 0 && !loading) {
+      setTimeout(() => {
+        generateMealPlan();
+      }, 500);
+    }
+  }, [currentWeek, recipes.length, loading]);
 
   // Format date range for display
   const formatDateRange = () => {
@@ -268,9 +294,21 @@ const MealPlannerPage = () => {
     });
   };
 
+  // Handle meal type toggle
+  const handleMealTypeToggle = (mealType: string) => {
+    if (selectedMealTypes.includes(mealType)) {
+      // Don't allow deselecting all meal types
+      if (selectedMealTypes.length > 1) {
+        setSelectedMealTypes(selectedMealTypes.filter((m) => m !== mealType));
+      }
+    } else {
+      setSelectedMealTypes([...selectedMealTypes, mealType]);
+    }
+  };
+
   // Get recipe by ID
   const getRecipeById = (recipeId: string) => {
-    return MOCK_RECIPES.find((recipe) => recipe.id === recipeId);
+    return recipes.find((recipe) => recipe.id === recipeId);
   };
 
   // Get meal for a specific day and meal type
@@ -292,20 +330,30 @@ const MealPlannerPage = () => {
       meals: [],
     };
     
-    // Generate random meals for each day and meal type
-    DAYS_OF_WEEK.forEach((day) => {
-      // For simplicity, we'll just add lunch and dinner
-      ['Lunch', 'Dinner'].forEach((mealType) => {
-        // Randomly select a recipe
-        const randomRecipeIndex = Math.floor(Math.random() * MOCK_RECIPES.length);
-        const randomRecipe = MOCK_RECIPES[randomRecipeIndex];
+    // Get the days to include based on daysPerWeek
+    const daysToInclude = DAYS_OF_WEEK.slice(0, daysPerWeek);
+    
+    // Generate random meals for each selected day and meal type
+    daysToInclude.forEach((day) => {
+      // Use the selected meal types
+      selectedMealTypes.forEach((mealType) => {
+        // Filter recipes suitable for this meal type
+        const suitableRecipes = recipes.filter(recipe =>
+          recipe.suitableMealTypes.includes(mealType)
+        );
         
-        newMealPlan.meals.push({
-          id: `${day}-${mealType}-${Date.now()}`,
-          day,
-          mealType,
-          recipeId: randomRecipe.id,
-        });
+        if (suitableRecipes.length > 0) {
+          // Randomly select a recipe from suitable ones
+          const randomRecipeIndex = Math.floor(Math.random() * suitableRecipes.length);
+          const randomRecipe = suitableRecipes[randomRecipeIndex];
+          
+          newMealPlan.meals.push({
+            id: `${day}-${mealType}-${Date.now()}`,
+            day,
+            mealType,
+            recipeId: randomRecipe.id,
+          });
+        }
       });
     });
     
@@ -328,6 +376,59 @@ const MealPlannerPage = () => {
             Generate Plan
           </Button>
         </Box>
+
+        {/* Meal Plan Generation Options */}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Meal Plan Options
+          </Typography>
+          <Grid container spacing={3}>
+            {/* Meal Types Selection */}
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <MealTypeIcon sx={{ mr: 1 }} color="primary" />
+                <Typography variant="subtitle1">Meal Types</Typography>
+              </Box>
+              <FormGroup row>
+                {MEAL_TYPE_OPTIONS.map((mealType) => (
+                  <FormControlLabel
+                    key={mealType.value}
+                    control={
+                      <Switch
+                        checked={selectedMealTypes.includes(mealType.value)}
+                        onChange={() => handleMealTypeToggle(mealType.value)}
+                      />
+                    }
+                    label={mealType.label}
+                  />
+                ))}
+              </FormGroup>
+            </Grid>
+
+            {/* Days Per Week Selection */}
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <CalendarIcon sx={{ mr: 1 }} color="primary" />
+                <Typography variant="subtitle1">Days Per Week</Typography>
+              </Box>
+              <FormControl fullWidth>
+                <InputLabel id="days-per-week-label">Days</InputLabel>
+                <Select
+                  labelId="days-per-week-label"
+                  value={daysPerWeek}
+                  label="Days"
+                  onChange={(e) => setDaysPerWeek(Number(e.target.value))}
+                >
+                  {DAYS_PER_WEEK.map((day) => (
+                    <MenuItem key={day} value={day}>
+                      {day} {day === 1 ? 'day' : 'days'}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </Paper>
 
         {/* Week navigation */}
         <Paper sx={{ p: 2, mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -458,7 +559,7 @@ const MealPlannerPage = () => {
                     labelId="recipe-label"
                     label="Recipe"
                   >
-                    {MOCK_RECIPES.map((recipe) => (
+                    {recipes.map((recipe) => (
                       <MenuItem key={recipe.id} value={recipe.id}>
                         {recipe.name} ({recipe.cookingTime} min)
                       </MenuItem>
